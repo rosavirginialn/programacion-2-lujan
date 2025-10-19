@@ -102,7 +102,7 @@ struct Hospital {
 };
 
 // Modulo de Gestion de Pacientes
-bool comparaCedula(Hospital* hospital, const char* cedula); {
+bool comparaCedula(Hospital* hospital, const char* cedula) {
     for (int i = 0; i < hospital->cantidadPacientes; ++i) {
 // strcmp devuelve 0 si las cadenas son iguales
         if (strcmp(hospital->pacientes[i].cedula, cedula) == 0) {
@@ -126,6 +126,7 @@ void redimensionarPacientes(Hospital* hospital) {
     hospital->capacidadPacientes = nuevaCapacidad;
 }
 
+// Crear Paciente
 Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apellido, const char* cedula, int edad, char sexo, const char* tipoSangre, const char* telefono, const char* direccion, const char* email) {
     if (comparaCedula(hospital, cedula)) {
         cout << "La cédula ingresada ya se encuentra en el sistema." << endl;
@@ -167,3 +168,30 @@ Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apel
     
     return nuevoPaciente;
 }
+
+// Buscar Paciente por Cedula
+Paciente* buscarPacientePorCedula(Hospital* hospital, const char* cedula) {
+    // Buscar el paciente en el arreglo de pacientes
+    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
+        // strcmp devuelve 0 si las cadenas son iguales esto quiere decir que si son iguales entra al if
+        if (strcmp(hospital->pacientes[i].cedula, cedula) == 0) {
+            // Paciente encontrado
+            return &hospital->pacientes[i];
+        }
+    }
+    return nullptr; // Paciente no encontrado
+}
+
+// Buscar Paciente por ID
+Paciente* buscarPacientePorId(Hospital* hospital, int id) {
+    // Buscar el paciente en el arreglo de pacientes
+    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
+        if (hospital->pacientes[i].id == id) {
+            // Paciente encontrado
+            return &hospital->pacientes[i];
+        }
+    }
+    return nullptr; // Paciente no encontrado
+}
+
+// Buscar Paciente por Nombre
