@@ -3,31 +3,9 @@
 #include <ctime>
 #include <iomanip>
 
-// Estructuras para el sistema de gestión hospitalaria.
+using namespace std;
 
-struct Hospital {
-    char nombre[100];
-    char direccion[150];
-    char telefono[15];
-    
-    Paciente* pacientes;
-    int cantidadPacientes;
-    int capacidadPacientes;
-    
-    Doctor* doctores;
-    int cantidadDoctores;
-    int capacidadDoctores;
-    
-    Cita* citas;
-    int cantidadCitas;
-    int capacidadCitas;
-    
-    int siguienteIdPaciente;
-    int siguienteIdDoctor;
-    int siguienteIdCita;
-    int siguienteIdConsulta;
-};
-
+// Estructuras
 struct HistorialMedico {
     int idConsulta;
     char fecha[11];
@@ -100,11 +78,92 @@ struct Cita {
     bool atendida;
 };
 
-// Funciones de inicialización.
+struct Hospital {
+    char nombre[100];
+    char direccion[150];
+    char telefono[15];
+    
+    Paciente* pacientes;
+    int cantidadPacientes;
+    int capacidadPacientes;
+    
+    Doctor* doctores;
+    int cantidadDoctores;
+    int capacidadDoctores;
+    
+    Cita* citas;
+    int cantidadCitas;
+    int capacidadCitas;
+    
+    int siguienteIdPaciente;
+    int siguienteIdDoctor;
+    int siguienteIdCita;
+    int siguienteIdConsulta;
+};
 
-Hospital* inicializarHospital(const char* nombre, int capacidadInicial);
+// Modulo de Gestion de Pacientes
+bool comparaCedula(Hospital* hospital, const char* cedula); {
+    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
+// strcmp devuelve 0 si las cadenas son iguales
+        if (strcmp(hospital->pacientes[i].cedula, cedula) == 0) {
+            return true; // Cedula ya existe
+        }
+    }
+    return false; // Cedula no existe
+}
 
-Paciente crearPaciente(Hospital* hospital, const char* nombre, const char* apellido, const char* cedula, int edad, char sexo, const char* tipoSangre, const char* telefono, const char* direccion, const char* email);
+void redimensionarPacientes(Hospital* hospital) {
+    int nuevaCapacidad = hospital->capacidadPacientes * 2;
+    // Crear nuevo arreglo de pacientes con mayor capacidad
+    Paciente* nuevosPacientes = new Paciente[nuevaCapacidad];
+    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
+        nuevosPacientes[i] = hospital->pacientes[i];
+    }
+    // Liberar memoria del arreglo antiguo y actualizar el puntero
+    delete[] hospital->pacientes;
+    // Actualizar el puntero hospital con el nuevo arreglo y capacidad
+    hospital->pacientes = nuevosPacientes;
+    hospital->capacidadPacientes = nuevaCapacidad;
+}
 
-Doctor crearDoctor(Hospital* hospital, const char* nombre, const char* apellido, const
-    char* cedula, const char* especialidad, int aniosExperiencia, float costoConsulta, const char* horarioAtencion, const char* telefono, const char* email);
+Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apellido, const char* cedula, int edad, char sexo, const char* tipoSangre, const char* telefono, const char* direccion, const char* email) {
+    if (comparaCedula(hospital, cedula)) {
+        cout << "La cédula ingresada ya se encuentra en el sistema." << endl;
+        return nullptr; // Cedula ya existe
+    }
+    
+    if (hospital->cantidadPacientes >= hospital->capacidadPacientes) {
+        redimensionarPacientes(hospital);
+    }
+    
+    Paciente* nuevoPaciente = &hospital->pacientes[hospital->cantidadPacientes];
+    nuevoPaciente->id = hospital->siguienteIdPaciente++;
+    // Copiar los datos proporcionados al nuevo paciente
+    strncpy(nuevoPaciente->nombre, nombre, sizeof(nuevoPaciente->nombre));
+    strncpy(nuevoPaciente->apellido, apellido, sizeof(nuevoPaciente->apellido));
+    strncpy(nuevoPaciente->cedula, cedula, sizeof(nuevoPaciente->cedula));
+    nuevoPaciente->edad = edad;
+    nuevoPaciente->sexo = sexo;
+    strncpy(nuevoPaciente->tipoSangre, tipoSangre, sizeof(nuevoPaciente->tipoSangre));
+    strncpy(nuevoPaciente->telefono, telefono, sizeof(nuevoPaciente->telefono));
+    strncpy(nuevoPaciente->direccion, direccion, sizeof(nuevoPaciente->direccion));
+    strncpy(nuevoPaciente->email, email, sizeof(nuevoPaciente->email));
+    
+    // Inicializar otros campos
+    nuevoPaciente->capacidadHistorial = 5;
+    nuevoPaciente->cantidadConsultas = 0;
+    nuevoPaciente->historial = new HistorialMedico[5];
+
+    nuevoPaciente->capacidadCitas = 5;
+    nuevoPaciente->cantidadCitas = 0;
+    nuevoPaciente->citasAgendadas = new int[5];
+    
+    nuevoPaciente->alergias[0] = '\0';
+    nuevoPaciente->observaciones[0] = '\0';
+    
+    nuevoPaciente->activo = true;
+    
+    hospital->cantidadPacientes++;
+    
+    return nuevoPaciente;
+}
