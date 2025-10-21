@@ -526,3 +526,34 @@ Doctor** buscarDoctoresPorEspecialidad(Hospital* hospital, const char* especiali
     
     return finales;
 }
+
+// Asignar Paciente a Doctor
+    bool asignarPacienteADoctor(Doctor* doctor, int idPaciente) {
+    // Verificar si el doctor y el paciente son válidos
+    if (doctor == nullptr || idPaciente < 0) return false;
+    // Verificar si el paciente ya está asignado
+    for (int i = 0; i < doctor->cantidadPacientes; ++i) {
+        if (doctor->pacientesAsignados[i] == idPaciente) {
+            cout << "El paciente ya esta asignado al doctor." << endl;
+            return false; // Paciente ya asignado
+        }
+    }
+    // Redimensionar arreglo si esta lleno
+    if (doctor->cantidadPacientes >= doctor->capacidadPacientes) {
+        int nuevaCapacidad = doctor->capacidadPacientes * 2;
+        // Crear nuevo arreglo con mayor capacidad
+        int* nuevosPacientes = new int[nuevaCapacidad];
+        // Copiar pacientes existentes al nuevo arreglo
+        for (int i = 0; i < doctor->cantidadPacientes; ++i) {
+            nuevosPacientes[i] = doctor->pacientesAsignados[i];
+        }
+        // Liberar memoria del arreglo antiguo y actualizar el puntero
+        delete[] doctor->pacientesAsignados;
+        doctor->pacientesAsignados = nuevosPacientes;
+        doctor->capacidadPacientes = nuevaCapacidad;
+    }
+    doctor->pacientesAsignados[doctor->cantidadPacientes] = idPaciente;
+    doctor->cantidadPacientes++;
+    cout << "El paciente fue asignado al doctor." << endl;
+    return true;
+}
