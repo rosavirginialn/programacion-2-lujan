@@ -329,15 +329,15 @@ bool eliminarPaciente(Hospital* hospital, int id) {
                 break;
             }
         }
-
-    for (int i = indice; i < hospital->cantidadPacientes - 1; ++i) {
+    }
+    for (int i = posicion; i < hospital->cantidadPacientes - 1; ++i) {
         hospital->pacientes[i] = hospital->pacientes[i + 1];
     }
     hospital->cantidadPacientes--;
     cout << "El paciente fue eliminado del sistema." << endl;
     return true;
 }
-    }
+
 
 // Listar Todos los Pacientes
 void listarPacientes(Hospital* hospital) {
@@ -349,14 +349,18 @@ void listarPacientes(Hospital* hospital) {
 
     for (int i = 0; i < hospital->cantidadPacientes; ++i) {
         Paciente& paciente = hospital->pacientes[i];
-        string nombreCompleto = string(paciente.nombre) + " " + paciente.apellido;
+            char nombreCompleto[100];
+            strcpy(nombreCompleto, paciente->nombre);
+            strcat(nombreCompleto, " ");
+            strcat(nombreCompleto, paciente->apellido);
+        string nombreCompleto = string(paciente->nombre) + " " + paciente->apellido;
 
-        cout << "║ " << setw(3) << left << paciente.id << " ║ "
+        cout << "║ " << setw(3) << left << paciente.id << " ║ " 
         // setw ajusta el ancho del campo, left alinea a la izquierda, right a la derecha
              << setw(21) << left << nombreCompleto << " ║ "
-             << setw(13) << left << paciente.cedula << " ║ "
-             << setw(4) << right << paciente.edad << " ║ "
-             << setw(8) << right << paciente.cantidadConsultas << " ║\n";
+             << setw(13) << left << paciente->cedula << " ║ "
+             << setw(4) << right << paciente->edad << " ║ "
+             << setw(8) << right << paciente->cantidadConsultas << " ║\n";
     }
     cout << "╚═════╩═════════════════════╩══════════════╩══════╩══════════╝ \n";
 }
@@ -557,3 +561,120 @@ Doctor** buscarDoctoresPorEspecialidad(Hospital* hospital, const char* especiali
     cout << "El paciente fue asignado al doctor." << endl;
     return true;
 }
+
+// Remover Paciente de Doctor
+bool removerPacienteDeDoctor(Doctor* doctor, int idPaciente){
+    if (doctor == nullptr || idPaciente < 0) return false;
+
+    int posicion = -1;
+    // Buscar la posición del paciente en el arreglo
+    for (int i = 0; i < doctor->cantidadPacientes; ++i) {
+        if (doctor->pacientesAsignados[i] == idPaciente) {
+            posicion = i;
+            break;
+        }
+    }
+    if (posicion == -1) {
+        cout << "El paciente no se encuentra asignado a este doctor." << endl;
+        return false; // Paciente no encontrado
+    }
+    // Remover paciente del arreglo
+    for (int i = posicion; i < doctor->cantidadPacientes - 1; ++i) {
+        doctor->pacientesAsignados[i] = doctor->pacientesAsignados[i + 1];
+    }
+    // Disminuir la cantidad de pacientes
+    doctor->cantidadPacientes--;
+    cout << "El paciente fue removido del doctor." << endl;
+    return true;
+}
+
+// Listar pacientes asignados a doctor
+void listarPacientesDeDoctor(Hospital* hospital, int idDoctor){
+    Doctor* doctor = buscarDoctorPorId(hospital, idDoctor);
+    if (doctor == nullptr) {
+        cout << "El doctor no fue encontrado en el sistema." << endl;
+        return;
+    }
+    cout << "╔════════════════════════════════════════════════════════════╗ \n";
+    cout << "║               PACIENTES ASIGNADOS AL DOCTOR                ║ \n";
+    cout << "╠═════╦═════════════════════╦══════════════╦══════╦══════════╣ \n";
+    cout << "║ ID  ║ NOMBRE COMPLETO     ║ CÉDULA       ║ EDAD ║ CONSULTAS║ \n";
+    cout << "╠═════╬═════════════════════╬══════════════╬══════╬══════════╣ \n";
+
+    for (int i = 0; i < doctor->cantidadPacientes; ++i) {
+        int idPaciente = doctor->pacientesAsignados[i];
+        Paciente* paciente = buscarPacientePorId(hospital, idPaciente);
+        if (paciente != nullptr) {
+            // Construir nombre completo
+            char nombreCompleto[100];
+            strcpy(nombreCompleto, paciente->nombre);
+            strcat(nombreCompleto, " ");
+            strcat(nombreCompleto, paciente->apellido);
+            cout << "║ " << setw(3) << left << paciente->id << " ║ "
+                 << setw(21) << left << nombreCompleto << " ║ "
+                 << setw(13) << left << paciente->cedula << " ║ "
+                 << setw(4) << right << paciente->edad << " ║ "
+                 << setw(8) << right << paciente->cantidadConsultas << " ║\n";
+        }
+    }
+    cout << "╚═════╩═════════════════════╩══════════════╩══════╩══════════╝ \n";
+}
+
+// Listar Doctores
+void listarDoctores(Hospital* hospital){
+    cout << "╔════════════════════════════════════════════════════════════╗ \n";
+    cout << "║                     LISTA DE DOCTORES                      ║ \n";
+    cout << "╠═════╦═════════════════════╦══════════════╦═════════════════╣ \n";
+    cout << "║ ID  ║ NOMBRE COMPLETO     ║ CÉDULA       ║ ESPECIALIDAD    ║ \n";
+    cout << "╠═════╬═════════════════════╬══════════════╬═════════════════╣ \n";
+
+    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
+        Doctor& doctor = hospital->doctores[i];
+            char nombreCompleto[100];
+            strcpy(nombreCompleto, doctor->nombre);
+            strcat(nombreCompleto, " ");
+            strcat(nombreCompleto, doctor->apellido);
+
+        cout << "║ " << setw(3) << left << doctor.id << " ║ " 
+        // setw ajusta el ancho del campo, left alinea a la izquierda, right a la derecha
+             << setw(21) << left << nombreCompleto << " ║ "
+             << setw(13) << left << doctor->cedula << " ║ "
+             << setw(17) << right << doctor->especialidad << " ║ \n";
+    }
+    cout << "╚═════╩═════════════════════╩══════════════╩═════════════════╝ \n";
+}
+
+// Eliminar Doctor
+bool eliminarDoctor(Hospital* hospital, int id) { 
+    int posicion = -1;
+    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
+        if (hospital->doctores[i].id == id) {
+            posicion = i;
+            break;
+        }
+    }
+    if (posicion == -1) {
+        cout << "El doctor no se encontro en el sistema." << endl;
+        return false;
+    }
+    Doctor& doctor = hospital->doctores[posicion];
+
+    delete[] doctor.historial;
+    for (int i = 0; i < doctor.cantidadCitas; ++i) {
+        int idCita = doctor.citasAgendadas[i];
+    cancelarCita(hospital, idCita);
+    }
+
+    delete[] doctor.citasAgendadas;
+    delete[] doctor.pacientesAsignados;
+
+    for (int i = posicion; i < hospital->cantidadDoctores - 1; ++i) {
+        hospital->doctores[i] = hospital->doctores[i + 1];
+    }
+    hospital->cantidadDoctores--;
+    cout << "El doctor fue eliminado del sistema." << endl;
+    return true;
+}
+
+
+// Modulo de Gestion de Citas
