@@ -1,23 +1,43 @@
 #include <iostream>
 #include <cstring>
+#include <fstream>
 #include <ctime>
 #include <iomanip>
 
 using namespace std;
 
+// Header estándar para todos los archivos binarios
+struct ArchivoHeader {
+    int cantidadRegistros;   // Cantidad actual de registros
+    int proximoID;           // Siguiente ID disponible
+    int registrosActivos;    // Registros no eliminados
+    int version;             // Versión del formato
+};
+
 // Estructuras
 struct HistorialMedico {
+    // Datos originales
     int id;
+    int pacienteID;                 // NUEVO: Referencia al paciente
     char fecha[11];
     char hora[6];
     char diagnostico[200];
     char tratamiento[200];
     char medicamentos[150];
-    int idDoctor;
+    int doctorID;
     float costo;
+    
+    // NUEVO: Navegación enlazada
+    int siguienteConsultaID;        // ID de siguiente consulta del mismo paciente
+                                    // -1 si es la última
+    
+    // Metadata
+    bool eliminado;
+    time_t fechaRegistro;
 };
 
 struct Paciente {
+    // Datos originales (sin cambios)
     int id;
     char nombre[50];
     char apellido[50];
@@ -28,54 +48,70 @@ struct Paciente {
     char telefono[15];
     char direccion[100];
     char email[50];
-    
-    HistorialMedico* historial;
-    int cantidadConsultas;
-    int capacidadHistorial;
-    
-    int* citasAgendadas;
-    int cantidadCitas;
-    int capacidadCitas;
-    
     char alergias[500];
     char observaciones[500];
-    
     bool activo;
+    
+    // NUEVO: Índices para relaciones
+    int cantidadConsultas;          // Total de consultas en historial
+    int primerConsultaID;           // ID de primera consulta en historiales.bin
+    
+    int cantidadCitas;              // Total de citas agendadas
+    int citasIDs[20];               // Array FIJO de IDs de citas (máx 20)
+    
+    // Metadata de registro
+    bool eliminado;                 // Flag para borrado lógico
+    time_t fechaCreacion;
+    time_t fechaModificacion;
 };
 
 struct Doctor {
+    // Datos originales
     int id;
     char nombre[50];
     char apellido[50];
-    char cedula[20];
+    char cedulaProfesional[20];
     char especialidad[50];
     int aniosExperiencia;
     float costoConsulta;
     char horarioAtencion[50];
     char telefono[15];
     char email[50];
-    
-    int* pacientesAsignados;
-    int cantidadPacientes;
-    int capacidadPacientes;
-    
-    int* citasAgendadas;
-    int cantidadCitas;
-    int capacidadCitas;
-    
     bool disponible;
+    
+    // NUEVO: Relaciones con arrays fijos
+    int cantidadPacientes;
+    int pacientesIDs[50];           // Máximo 50 pacientes
+    
+    int cantidadCitas;
+    int citasIDs[30];               // Máximo 30 citas
+    
+    // Metadata
+    bool eliminado;
+    time_t fechaCreacion;
+    time_t fechaModificacion;
 };
 
 struct Cita {
+    // Datos originales (sin cambios significativos)
     int id;
-    int idPaciente;
-    int idDoctor;
+    int pacienteID;
+    int doctorID;
     char fecha[11];
     char hora[6];
     char motivo[150];
-    char estado[20];
+    char estado[20];                // "Agendada", "Atendida", "Cancelada"
     char observaciones[200];
     bool atendida;
+    
+    // NUEVO: Referencia al historial
+    int consultaID;                 // ID de consulta creada al atender
+                                    // -1 si no ha sido atendida
+    
+    // Metadata
+    bool eliminado;
+    time_t fechaCreacion;
+    time_t fechaModificacion;
 };
 
 struct Hospital {
@@ -83,23 +119,17 @@ struct Hospital {
     char direccion[150];
     char telefono[15];
     
-    Paciente* pacientes;
-    int cantidadPacientes;
-    int capacidadPacientes;
+    // Contadores de IDs (auto-increment)
+    int siguienteIDPaciente;
+    int siguienteIDDoctor;
+    int siguienteIDCita;
+    int siguienteIDConsulta;
     
-    Doctor* doctores;
-    int cantidadDoctores;
-    int capacidadDoctores;
-    
-    Cita* citas;
-    int cantidadCitas;
-    int capacidadCitas;
-    
-    int siguienteIdPaciente;
-    int siguienteIdDoctor;
-    int siguienteIdCita;
-    int siguienteIdConsulta;
-    int siguienteIdHistorial;
+    // Estadísticas generales
+    int totalPacientesRegistrados;
+    int totalDoctoresRegistrados;
+    int totalCitasAgendadas;
+    int totalConsultasRealizadas;
 };
 
 // Llamado a validaciones
@@ -131,12 +161,10 @@ bool comparaCedula(Hospital* hospital, const char* cedula) {
 
 void redimensionarArrayPacientes(Hospital* hospital) {
     int nuevaCapacidad = hospital->capacidadPacientes * 2;
-    // Crear nuevo arreglo de pacientes con mayor capacidad
     Paciente* nuevosPacientes = new Paciente[nuevaCapacidad];
     for (int i = 0; i < hospital->cantidadPacientes; ++i) {
         nuevosPacientes[i] = hospital->pacientes[i];
     }
-    // Liberar memoria del arreglo antiguo y actualizar el puntero
     delete[] hospital->pacientes;
     // Actualizar el puntero hospital con el nuevo arreglo y capacidad
     hospital->pacientes = nuevosPacientes;
