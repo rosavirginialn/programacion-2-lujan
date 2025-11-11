@@ -132,6 +132,131 @@ struct Hospital {
     int totalConsultasRealizadas;
 };
 
+
+// Funciones Fundamentales de Archivos Binarios
+
+// Crear archivo con header inicial
+bool inicializarArchivo(const char* nombreArchivo) {
+    ofstream archivo(nombreArchivo, ios::binary | ios::out);
+    if(!archivo) {
+        cerr << "Error, no se pudo crear el archivo: " << nombreArchivo << endl;
+        return false;
+    }
+    ArchivoHeader header;
+    header.cantidadRegistros = 0;
+    header.proximoID = 1;
+    header.registrosActivos = 0;
+    header.version = 1;
+    archivo.write(reinterpret_cast<const char*>(&header), sizeof(ArchivoHeader));
+    archivo.close();
+    return true;
+}
+
+// Verificar si archivo existe y es válido
+bool verificarArchivo(const char* nombreArchivo) {
+    ifstream archivo(nombreArchivo, ios::binary | ios::in);
+    if(!archivo.is_open()) {
+        return false; // Archivo no existe
+    }
+    ArchivoHeader header;
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(ArchivoHeader));
+    archivo.close();
+
+    if(header.version != 1) {
+        cerr << "Error, el archivo " << nombreArchivo << " no tiene una version valida." << endl;
+        return false;
+    }
+    return true;    
+}
+
+// Leer header de cualquier archivo
+ArchivoHeader leerHeader(const char* nombreArchivo) {
+    ifstream archivo(nombreArchivo, ios::binary | ios::in);
+    if(archivo.is_open() == false) {
+        cerr << "Error, no se pudo abrir el archivo: " << nombreArchivo << endl;
+        header.cantidadRegistros = 0;
+        header.proximoID = 1;
+        header.registrosActivos = 0;
+        header.version = 1;
+        return header;
+    }
+    archivo.seekg(0, ios::beg);
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(ArchivoHeader));
+    archivo.close();
+    return header;
+}
+
+// Actualizar header (cantidad, timestamps, etc.)
+bool actualizarHeader(const char* nombreArchivo, ArchivoHeader header) {
+    fstream(nombreArchivo, ios::binary | ios::in | ios::out);
+    if(!archivo.is_open()) {
+        cerr << "Error, no se pudo abrir el archivo a actualizar: " << nombreArchivo << endl;
+        return false;
+    }
+    archivo.seekp(0, ios::beg);
+    archivo.write(reinterpret_cast<const char*>(&header), sizeof(ArchivoHeader));
+    archivo.close();
+    return true;
+}
+
+//Calcular posición en bytes de un registro por su índice.
+long calcularPosicion(int indice) {
+    return sizeof(ArchivoHeader) + (indice * sizeof(Paciente));
+}
+
+// Buscar paciente por ID usando acceso secuencial
+Paciente buscarPacientePorID(int id) {
+    ifstream archivo("pacientes.bin", ios::binary | ios::in);
+    if(!archivo.is_open()) {
+        cerr << "Error, no se pudo abrir el archivo de pacientes." << endl;
+        return Paciente(); // Retorna un paciente vacío
+    }
+
+    ArchivoHeader header = leerHeader("pacientes.bin");
+    archivo.read(reinterpret_cast<char*>(&header), sizeof(ArchivoHeader));
+    archivo.seekg(sizeof(ArchivoHeader), ios::beg);
+    Paciente paciente;
+
+    for(int i = 0; i < header.cantidadRegistros; ++i) {
+        archivo.read(reinterpret_cast<char*>(&paciente), sizeof(Paciente));
+
+        if(paciente.id == id && !paciente.eliminado) {
+            archivo.close();
+            return paciente; // Retorna el paciente encontrado
+        }
+    }
+    archivo.close();
+    return Paciente(); // Retorna un paciente vacío
+}
+
+// Crear Registro (Agregar al Final)
+bool agregarPaciente(Paciente nuevoPaciente) {
+    ArchivoHeader header = leerHeader("pacientes.bin");
+    nuevoPaciente.id = header.proximoID;
+    nuevoPaciente.cantidadConsultas = 0;
+    nuevoPaciente.primerConsultaID = -1; // Inicializar como -1 (sin consultas)
+    nuevoPaciente.cantidadCitas = 0;
+    nuevoPaciente.eliminado = false;
+    nuevoPaciente.fechaCreacion = time(nullptr);
+    nuevoPaciente.fechaModificacion = time(nullptr);
+
+    ofstream archivo("pacientes.bin", ios::binary | ios::app);
+    if(!archivo.is_open()) {
+        cerr << "Error, no se pudo abrir el archivo de pacientes para agregar." << endl;
+        return false;
+    }
+    archivo.write(reinterpret_cast<const char*>(&nuevoPaciente), sizeof(Paciente));
+    archivo.close();
+    // Actualizar header
+    header.cantidadRegistros++;
+    header.proximoID++;
+    header.registrosActivos++;
+    actualizarHeader("pacientes.bin", header);
+    cout << "El paciente fue agregado con el ID: " << nuevoPaciente.id << endl;
+    return true;
+}
+
+
 // Llamado a validaciones
 bool validarNombre(const char* nombre);
 bool validarApellido(const char* apellido);
@@ -157,18 +282,6 @@ bool comparaCedula(Hospital* hospital, const char* cedula) {
         }
     }
     return false; // Cedula no existe
-}
-
-void redimensionarArrayPacientes(Hospital* hospital) {
-    int nuevaCapacidad = hospital->capacidadPacientes * 2;
-    Paciente* nuevosPacientes = new Paciente[nuevaCapacidad];
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        nuevosPacientes[i] = hospital->pacientes[i];
-    }
-    delete[] hospital->pacientes;
-    // Actualizar el puntero hospital con el nuevo arreglo y capacidad
-    hospital->pacientes = nuevosPacientes;
-    hospital->capacidadPacientes = nuevaCapacidad;
 }
 
 // Crear Paciente
@@ -205,10 +318,6 @@ Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apel
         cout << "Email invalido. Verifica se encuentre el '@' y los caracteres validos." << endl;
         return nullptr;
     }
-
-    if (hospital->cantidadPacientes >= hospital->capacidadPacientes) {
-        redimensionarArrayPacientes(hospital);
-    }
     
     Paciente* nuevoPaciente = &hospital->pacientes[hospital->cantidadPacientes];
     nuevoPaciente->id = hospital->siguienteIdPaciente++;
@@ -228,11 +337,9 @@ Paciente* crearPaciente(Hospital* hospital, const char* nombre, const char* apel
     // Inicializar otros campos
     nuevoPaciente->capacidadHistorial = 5;
     nuevoPaciente->cantidadConsultas = 0;
-    nuevoPaciente->historial = new HistorialMedico[5];
 
     nuevoPaciente->capacidadCitas = 5;
     nuevoPaciente->cantidadCitas = 0;
-    nuevoPaciente->citasAgendadas = new int[5];
     
     nuevoPaciente->alergias[0] = '\0';
     nuevoPaciente->observaciones[0] = '\0';
@@ -296,15 +403,6 @@ Paciente** buscarPacientesPorNombre(Hospital* hospital, const char* nombre, int*
             (*cantidad)++;
         }
     }
-    // Redimensionar el array de resultados al tamaño exacto
-    Paciente** finales = new Paciente*[*cantidad];
-    for (int i = 0; i < *cantidad; ++i) {
-        finales[i] = resultados[i];
-    }
-    delete[] resultados;
-    
-    return finales;
-}
 
 // Actualizar Datos del Paciente
 bool actualizarDatosPaciente(Hospital* hospital, int id){
@@ -376,42 +474,6 @@ bool cancelarCita(Hospital* hospital, int idCita);
 
 // Eliminar Paciente
 bool eliminarPaciente(Hospital* hospital, int id) {
-    int posicion = -1;
-    for (int i = 0; i < hospital->cantidadPacientes; ++i) {
-        if (hospital->pacientes[i].id == id) {
-            posicion = i;
-            break;
-        }
-    }
-    if (posicion == -1) {
-        cout << "El paciente no se encontro en el sistema" << endl;
-        return false;
-    }
-    Paciente& paciente = hospital->pacientes[posicion];
-
-    delete[] paciente.historial;
-    for (int i = 0; i < paciente.cantidadCitas; ++i) {
-    int idCita = paciente.citasAgendadas[i];
-    cancelarCita(hospital, idCita); }
-
-    delete[] paciente.citasAgendadas;
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        Doctor& doctor = hospital->doctores[i];
-        for (int j = 0; j < doctor.cantidadPacientes; ++j) {
-            if (doctor.pacientesAsignados[j] == id) {
-                // Remover paciente del doctor
-                for (int k = j; k < doctor.cantidadPacientes - 1; ++k) {
-                    doctor.pacientesAsignados[k] = doctor.pacientesAsignados[k + 1];
-                }
-                doctor.cantidadPacientes--;
-                break;
-            }
-        }
-    }
-    for (int i = posicion; i < hospital->cantidadPacientes - 1; ++i) {
-        hospital->pacientes[i] = hospital->pacientes[i + 1];
-    }
-    hospital->cantidadPacientes--;
     cout << "El paciente fue eliminado del sistema." << endl;
     return true;
 }
@@ -448,19 +510,7 @@ void listarPacientes(Hospital* hospital) {
 
 // Agregar consulta al historial
 void agregarConsultaAlHistorial(Paciente* paciente, HistorialMedico consulta){
-    if (paciente->cantidadConsultas >= paciente->capacidadHistorial) {
-        int nuevaCapacidad = paciente->capacidadHistorial * 2;
-        HistorialMedico* nuevoHistorial = new HistorialMedico[nuevaCapacidad];
 
-        for (int i = 0; i < paciente->cantidadConsultas; ++i) {
-            nuevoHistorial[i] = paciente->historial[i];
-        }
-        delete[] paciente->historial;
-        paciente->historial = nuevoHistorial;
-        paciente->capacidadHistorial = nuevaCapacidad;
-    }
-    paciente->historial[paciente->cantidadConsultas] = consulta;
-    paciente->cantidadConsultas++;
 }
 
 // Obtener historial completo
@@ -511,17 +561,6 @@ bool comparaCedulaDoctor(Hospital* hospital, const char* cedula) {
     return false; // Cedula no existe
 }
 
-void redimensionarArrayDoctores(Hospital* hospital) {
-    int nuevaCapacidad = hospital->capacidadDoctores * 2;
-    Doctor* nuevos = new Doctor[nuevaCapacidad];
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        nuevos[i] = hospital->doctores[i];
-    }
-    delete[] hospital->doctores;
-    hospital->doctores = nuevos;
-    hospital->capacidadDoctores = nuevaCapacidad;
-}
-
 // Validaciones de doctor
 bool validarAniosExperiencia(int anios) {
     return anios >= 0;
@@ -556,10 +595,6 @@ Doctor* crearDoctor(Hospital* hospital, const char* nombre, const char* apellido
         cout << "Costo de consulta invalido. Debe ser mayor a 0." << endl;
         return nullptr;
     }
-
-    if (hospital->cantidadDoctores >= hospital->capacidadDoctores) {
-        redimensionarArrayDoctores(hospital);
-    }
     
     Doctor* nuevoDoctor = &hospital->doctores[hospital->cantidadDoctores];
     nuevoDoctor->id = hospital->siguienteIdDoctor++;
@@ -574,11 +609,9 @@ Doctor* crearDoctor(Hospital* hospital, const char* nombre, const char* apellido
     // Inicializar otros campos
     nuevoDoctor->capacidadPacientes = 5;
     nuevoDoctor->cantidadPacientes = 0;
-    nuevoDoctor->pacientesAsignados = new int[5];
 
     nuevoDoctor->capacidadCitas = 5;
     nuevoDoctor->cantidadCitas = 0;
-    nuevoDoctor->citasAgendadas = new int[5];
     
     nuevoDoctor->disponible = true;
     strcpy(nuevoDoctor->horarioAtencion, "");
@@ -632,16 +665,6 @@ Doctor** buscarDoctoresPorEspecialidad(Hospital* hospital, const char* especiali
     return nullptr;
     }
 
-    // Redimensionar el array de resultados al tamaño exacto
-    Doctor** finales = new Doctor*[*cantidad];
-    for (int i = 0; i < *cantidad; ++i) {
-        finales[i] = resultados[i];
-    }
-    delete[] resultados;
-    
-    return finales;
-}
-
 // Asignar Paciente a Doctor
     bool asignarPacienteADoctor(Doctor* doctor, int idPaciente) {
     // Verificar si el doctor y el paciente son válidos
@@ -653,15 +676,6 @@ Doctor** buscarDoctoresPorEspecialidad(Hospital* hospital, const char* especiali
             return false; // Paciente ya asignado
         }
     }
-    // Redimensionar arreglo si esta lleno
-    if (doctor->cantidadPacientes >= doctor->capacidadPacientes) {
-        int nuevaCapacidad = doctor->capacidadPacientes * 2;
-        // Crear nuevo arreglo con mayor capacidad
-        int* nuevosPacientes = new int[nuevaCapacidad];
-        // Copiar pacientes existentes al nuevo arreglo
-        for (int i = 0; i < doctor->cantidadPacientes; ++i) {
-            nuevosPacientes[i] = doctor->pacientesAsignados[i];
-        }
         // Liberar memoria del arreglo antiguo y actualizar el puntero
         delete[] doctor->pacientesAsignados;
         doctor->pacientesAsignados = nuevosPacientes;
@@ -759,50 +773,12 @@ bool cancelarCita(Hospital* hospital, int idCita);
 
 // Eliminar Doctor
 bool eliminarDoctor(Hospital* hospital, int id) { 
-    int posicion = -1;
-    for (int i = 0; i < hospital->cantidadDoctores; ++i) {
-        if (hospital->doctores[i].id == id) {
-            posicion = i;
-            break;
-        }
-    }
-    if (posicion == -1) {
-        cout << "El doctor no se encontro en el sistema." << endl;
-        return false;
-    }
-    Doctor& doctor = hospital->doctores[posicion];
-
-    for (int i = 0; i < doctor.cantidadCitas; ++i) {
-        int idCita = doctor.citasAgendadas[i];
-    cancelarCita(hospital, idCita);
-    }
-
-    delete[] doctor.citasAgendadas;
-    delete[] doctor.pacientesAsignados;
-
-    for (int i = posicion; i < hospital->cantidadDoctores - 1; ++i) {
-        hospital->doctores[i] = hospital->doctores[i + 1];
-    }
-    hospital->cantidadDoctores--;
     cout << "El doctor fue eliminado del sistema." << endl;
     return true;
 }
 
 
 // Modulo de Gestion de Citas
-
-// Redimensionar citas
-   void redimensionarArrayCitas(Hospital* hospital) {
-    int nuevaCapacidad = hospital->capacidadCitas * 2;
-    // Crear nuevo arreglo de citas con mayor capacidad
-    Cita* nuevasCitas = new Cita[nuevaCapacidad];
-    for (int i = 0; i < hospital->cantidadCitas; ++i) {
-        nuevasCitas[i] = hospital->citas[i];
-    }
-    delete[] hospital->citas;
-    hospital->citas = nuevasCitas;
-    hospital->capacidadCitas = nuevaCapacidad;
-}
 
 bool validarFecha(const char* fecha);
 bool validarHora(const char* hora);
@@ -834,9 +810,7 @@ Cita* agendarCita(Hospital* hospital, int idPaciente, int idDoctor, const char* 
             return nullptr;
         }
     }
-    if (hospital->cantidadCitas >= hospital->capacidadCitas) {
-        redimensionarArrayCitas(hospital);
-    }
+
     // Crear cita nueva
     Cita& nuevaCita = hospital->citas[hospital->cantidadCitas];
     nuevaCita.id = hospital->cantidadCitas + 1;
